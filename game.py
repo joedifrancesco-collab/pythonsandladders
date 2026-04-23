@@ -1,4 +1,5 @@
 import random
+import sys
 
 FINAL_SQUARE = 100
 
@@ -27,13 +28,42 @@ JUMPS = {
 }
 
 
-def wait_for_space(prompt_text: str) -> None:
-    """Require a space bar + Enter input before continuing."""
-    while True:
-        entered = input(prompt_text)
-        if entered == " ":
-            return
-        print("Please press the space bar, then Enter.")
+def wait_for_space(prompt_text: str) -> bool:
+    """Wait for SPACE, Q, or A. Returns True if autoplay was requested."""
+    print(prompt_text, end="", flush=True)
+    if sys.platform == "win32":
+        import msvcrt
+        while True:
+            ch = msvcrt.getwch()
+            if ch == " ":
+                print()
+                return False
+            if ch.lower() == "q":
+                print("\nThanks for playing!")
+                sys.exit(0)
+            if ch.lower() == "a":
+                print("\nAutoplay enabled — sit back and watch!")
+                return True
+    else:
+        import tty
+        import termios
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            while True:
+                ch = sys.stdin.read(1)
+                if ch == " ":
+                    print()
+                    return False
+                if ch.lower() == "q":
+                    print("\nThanks for playing!")
+                    sys.exit(0)
+                if ch.lower() == "a":
+                    print("\nAutoplay enabled — sit back and watch!")
+                    return True
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
 def get_player_count() -> int:
@@ -47,12 +77,8 @@ def get_player_count() -> int:
 def get_player_names(count: int) -> list[str]:
     names: list[str] = []
     for idx in range(1, count + 1):
-        while True:
-            name = input(f"Player {idx} name: ").strip()
-            if name:
-                names.append(name)
-                break
-            print("Name cannot be empty.")
+        name = input(f"Player {idx} name (Enter to use 'Player {idx}'): ").strip()
+        names.append(name if name else f"Player {idx}")
     return names
 
 
@@ -66,69 +92,66 @@ def ordinal(n: int) -> str:
 
 def main() -> None:
     print("Welcome to Pythons & Ladders!")
+    print("Press SPACE to roll. Press A to autoplay. Press Q at any prompt to quit.")
+    print()
 
     player_count = get_player_count()
     players = get_player_names(player_count)
 
-    wait_for_space("Press space bar to begin: ")
+    autoplay = wait_for_space("Press space bar to begin: ")
 
     positions = {name: 0 for name in players}
     rolls = {name: 0 for name in players}
     finish_order: list[str] = []
 
     current_index = 0
-    while not finish_order:
+    while len(finish_order) < player_count:
         player = players[current_index]
 
-        die = random.randint(1, 6)
-        rolls[player] += 1
+        if player not in finish_order:
+            die = random.randint(1, 6)
+            rolls[player] += 1
 
-        print(f"{player} rolls a {die}")
+            print(f"{player} rolls a {die}")
 
-        attempted = positions[player] + die
-        if attempted > FINAL_SQUARE:
-            print(
-                f"{player} needs an exact roll to reach space {FINAL_SQUARE} and stays on space {positions[player]}"
-            )
-        else:
-            positions[player] = attempted
-            print(f"{player} lands on space {positions[player]}")
+            attempted = positions[player] + die
+            if attempted > FINAL_SQUARE:
+                print(
+                    f"{player} needs an exact roll to reach space {FINAL_SQUARE} and stays on space {positions[player]}"
+                )
+            else:
+                positions[player] = attempted
+                print(f"{player} lands on space {positions[player]}")
 
-            if positions[player] in JUMPS:
-                destination = JUMPS[positions[player]]
-                if destination > positions[player]:
-                    print(
-                        f"Ladder! {player} climbs from space {positions[player]} to space {destination}"
-                    )
-                else:
-                    print(
-                        f"Python! {player} slides from space {positions[player]} to space {destination}"
-                    )
-                positions[player] = destination
+                if positions[player] in JUMPS:
+                    destination = JUMPS[positions[player]]
+                    if destination > positions[player]:
+                        print(
+                            f"Ladder! {player} climbs from space {positions[player]} to space {destination}"
+                        )
+                    else:
+                        print(
+                            f"Python! {player} slides from space {positions[player]} to space {destination}"
+                        )
+                    positions[player] = destination
 
-            if positions[player] == FINAL_SQUARE:
-                finish_order.append(player)
-
-        if finish_order:
-            break
-
-        wait_for_space("Press space bar to continue: ")
+                if positions[player] == FINAL_SQUARE:
+                    finish_order.append(player)
+                    print(f"{player} has finished in {ordinal(len(finish_order))} place!")
 
         current_index = (current_index + 1) % player_count
 
-    winner = finish_order[0]
+        if len(finish_order) < player_count:
+            if not autoplay:
+                autoplay = wait_for_space("Press space bar to continue: ")
+
     print("\nGame Over")
-    print(f"Winner: {winner} (rolls: {rolls[winner]})")
+    print(f"Winner: {finish_order[0]} (rolls: {rolls[finish_order[0]]})")
 
-    others = [name for name in players if name != winner]
-    others_sorted = sorted(others, key=lambda name: (-positions[name], rolls[name], name.lower()))
-
-    place = 2
-    for name in others_sorted:
+    for place, name in enumerate(finish_order[1:], start=2):
         print(
-            f"{ordinal(place)} place: {name} | position: {positions[name]} | rolls: {rolls[name]}"
+            f"{ordinal(place)} place: {name} | rolls: {rolls[name]}"
         )
-        place += 1
 
 
 if __name__ == "__main__":
