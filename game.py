@@ -38,12 +38,15 @@ def wait_for_space(prompt_text: str) -> bool:
             if ch == " ":
                 print()
                 return False
-            if ch.lower() == "q":
+            elif ch.lower() == "q":
                 print("\nThanks for playing!")
                 sys.exit(0)
-            if ch.lower() == "a":
+            elif ch.lower() == "a":
                 print("\nAutoplay enabled — sit back and watch!")
                 return True
+            else:
+                # Invalid key, loop and ask again
+                pass
     else:
         import tty
         import termios
@@ -56,12 +59,15 @@ def wait_for_space(prompt_text: str) -> bool:
                 if ch == " ":
                     print()
                     return False
-                if ch.lower() == "q":
+                elif ch.lower() == "q":
                     print("\nThanks for playing!")
                     sys.exit(0)
-                if ch.lower() == "a":
+                elif ch.lower() == "a":
                     print("\nAutoplay enabled — sit back and watch!")
                     return True
+                else:
+                    # Invalid key, loop and ask again
+                    pass
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
